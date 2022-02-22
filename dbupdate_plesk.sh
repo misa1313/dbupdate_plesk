@@ -9,11 +9,18 @@ else
         :
 fi
 
-#Blocking if version is MySQL 5.1
+#Blocking if version is MySQL 5.1/ MariaDB 5.5
 v1=$(rpm -qa | grep -iEe mysql.*-server |grep -v plesk|grep  "\-5.1.")
 if [[ ! -z "$v1" ]]; then
     echo -e "\nDirect upgrade from MySQL 5.1 to MySQL 5.6/5.7 will break tables structure. Not supported."
     kill -9 $$
+else
+        :
+fi
+v2=$(rpm -qa | grep -iEe mariadb.*-server |grep -v plesk|grep "\-5.5.")
+if [[ ! -z "$v2" ]]; then
+echo -e "MariaDB 5.5 not supported"
+        kill -9 $$
 else
         :
 fi
