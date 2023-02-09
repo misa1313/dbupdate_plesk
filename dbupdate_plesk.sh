@@ -1,7 +1,6 @@
 #! /bin/sh
 
 #Script to update MySQL or MariaDB automatically for Plesk servers. 
-
 if [[ ! -f "/usr/local/psa/version" ]]; then
         echo -e "This is intended to run on Plesk servers."
         kill -9 $$
@@ -11,16 +10,10 @@ fi
 
 #Blocking if version is MySQL 5.1/ MariaDB 5.3
 v1=$(rpm -qa | grep -iEe mysql.*-server |grep -v plesk|grep  "\-5.1.")
-if [[ ! -z "$v1" ]]; then
-    echo -e "\nDirect upgrade from MySQL 5.1 to MySQL 5.6/5.7 will break tables structure. Not supported."
-    kill -9 $$
-else
-        :
-fi
 v2=$(rpm -qa | grep -iEe mariadb.*-server |grep -v plesk|grep "\-5.3.")
-if [[ ! -z "$v2" ]]; then
-echo -e "MariaDB 5.3 not supported"
-        kill -9 $$
+if [[ ! -z "$v1" ]] || [[ ! -z "$v2" ]]; then
+    echo -e "\nMariaDB 5.3 and MySQL 5.1 are not supported."
+    kill -9 $$
 else
         :
 fi
@@ -48,26 +41,22 @@ fi
 restart_mariadb() {
 (systemctl restart mariadb.service 2&> /dev/null && echo -e "Restarted") || (service mariadb restart 2&> /dev/null && echo -e "Restarted*")
 }
-
 stop_mariadb() {
 (systemctl stop mariadb.service 2&> /dev/null && echo -e "MariaDB has been stopped") || (service mariadb stop 2&> /dev/null && echo -e "MariaDB has been stopped*") 
 }
-
 restart_mysql() {
 (systemctl restart mysql.service 2&> /dev/null && echo -e "Restarted") || (service mysql restart 2&> /dev/null && echo -e "Restarted**") || (service mysqld restart 2&> /dev/null && echo -e "Restarted*")
 }
-
 stop_mysql() {
 (systemctl stop mysql.service 2&> /dev/null && echo -e "MySQL has been stopped") || (service mysql stop 2&> /dev/null && echo -e "MySQL has been stopped*") || (service mysqld stop 2&> /dev/null && echo -e "MySQL has been stopped*") 
 }
 
 #Backing up my.cnf
-echo -e "What's your username?"
-read username
 clear
-if [[ ! -f "/etc/my.cnf.$username" ]]; then
-echo -e "\nBacking up the configuration file:"
-cp -avr /etc/my.cnf /etc/my.cnf.$username
+date=$(/usr/bin/date +%s)
+if [[ ! -f "/etc/my.cnf.$date" ]]; then
+echo -e "\nBacking up the configuration file to my.cnf.$date:"
+cp -avr /etc/my.cnf /etc/my.cnf.$date
 fi
 
 #SQL mode
@@ -103,10 +92,11 @@ echo -e "Giving a few secs for the database server to start\n" && sleep 2
     fi
 
     echo -e "###Backups:\n"
-    if [[ ! -d "/home/temp/mysqldumps.$username" ]]; then
-            mkdir -p /home/temp/mysqldumps.$username
+    if [[ ! -d "/home/temp/mysqldumps.$date" ]]; then
+            mkdir -p /home/temp/mysqldumps.$date
     fi
-    cd /home/temp/mysqldumps.$username
+    echo "The backup dir is /home/temp/mysqldumps.$date"
+    cd /home/temp/mysqldumps.$date
     (set -x; pwd)
     echo -e "\n-Dumping databases:"
     exe eval '(echo "SHOW DATABASES;" | mysql -uadmin -p`cat /etc/psa/.psa.shadow` -Bs | grep -v '^information_schema$' | while read i ; do echo Dumping $i ; mysqldump -uadmin -p`cat /etc/psa/.psa.shadow` --single-transaction $i | gzip -c > $i.sql.gz ; done)'
@@ -119,8 +109,7 @@ echo -e "Giving a few secs for the database server to start\n" && sleep 2
     echo -e "\n\n-Rsync data dir:"
     ddir=$(mysql -uadmin -p`cat /etc/psa/.psa.shadow` -e "show variables;" |grep datadir| awk {'print $2'})
     bakdir=$(echo "$ddir"|rev | cut -c2-|rev)
-    stop_mariadb
-    stop_mysql
+    stop_mariadb;stop_mysql
     sleep 1 && echo
     echo "Path to data dir: $ddir"
     echo "rsync -aHl $ddir $bakdir.backup/"
@@ -128,9 +117,8 @@ echo -e "Giving a few secs for the database server to start\n" && sleep 2
     exit_status
     echo -e "Synced\n"
     echo "Restarting..."
-    restart_mariadb
-    restart_mysql
-    sleep 3
+    restart_mariadb;restart_mysql
+    sleep 2
 
     echo -e "\n\n###Checking HTTP status of all domains prior the upgrade:\n"
     (for i in `mysql -uadmin -p\`cat /etc/psa/.psa.shadow\` psa -Ns -e "select name from domains"`; do echo $i; done) | while read i; do curl -sILo /dev/null -w "%{http_code} " -m 5 http://$i; echo $i; done > /home/temp/mysql_pre_upgrade_http_check
@@ -152,7 +140,7 @@ ver_diff=$(echo "$db_ver $vers"| awk '{print $1 - $2}')
 ver_diff=$( sed "s/-//" <<< $ver_diff ) #absolute value
 }
 
-db_ver=$(mysql -uadmin -p`cat /etc/psa/.psa.shadow` -V| grep -Eo "[0-9]+\.[0-9]+\.[0-9]+"|cut -c1-4)
+db_ver=$(mysql -uadmin -p`cat /etc/psa/.psa.shadow` -V| grep -Eo "[0-9]+\.[0-9]+\.[0-9]+"|cut -c1-4) #Get version
 echo -e "\nCurrent version is $db_ver\n"
 db_ver=$(echo $db_ver|tr -d '.')
 
@@ -178,18 +166,17 @@ while true; do
         fi
 done
 }
+
 #Function containing all the steps for the upgrade of MariaDB
 upgrade_mariadb() {
 if [ -f "/etc/yum.repos.d/MariaDB.repo" ] ; then
   mv /etc/yum.repos.d/MariaDB.repo /etc/yum.repos.d/mariadb.repo
 fi
 
-echo -e "\n###Removing mysql-server package in case it exists"
-echo "With rpm e mysql-server"
+echo -e "\n###Removing mysql-server package in case it exists"; echo "With rpm e mysql-server"
 rpm -e --nodeps "`rpm -q --whatprovides mysql-server`" 2&> /dev/null
 
-echo -e "\n\n###Upgrading MariaDB -"
-echo -e "\n-List of available versions:\n\n10.2\n10.3\n10.4\n10.5\n10.6\n"
+echo -e "\n\n###Upgrading MariaDB -"; echo -e "\n-List of available versions:\n\n10.2\n10.3\n10.4\n10.5\n10.6\n"
 echo -e "\nWhich one are you installing? Only the version: 10.3, 10.4, etc.)."
 safe_diff
 supported_versions=(102 103 104 105 106)
@@ -211,27 +198,23 @@ stop_mariadb
 rpm -e --nodeps MariaDB-server
 
 echo -e "\n-yum update"
-yum update -y
-exit_status
+yum update -y; exit_status
 echo -e "\n-yum install MariaDB-server -y"
-yum install MariaDB-server -y
-exit_status
+yum install MariaDB-server -y; exit_status
 sed -i 's/::ffff:127.0.0.1/127.0.0.1/g' /etc/my.cnf
-systemctl start mariadb
-sleep 2
+systemctl start mariadb; sleep 2
 MYSQL_PWD=`cat /etc/psa/.psa.shadow` mysql_upgrade -uadmin
 restart_mariadb
 
 echo -e "\nInforming Plesk of the changes (plesk sbin packagemng -sdf):"
 plesk sbin packagemng -sdf
-/usr/bin/systemctl start mariadb # to start MariaDB if not started
-/usr/bin/systemctl enable mariadb # to make sure that MariaDB will start after the server reboot automatically
+systemctl start mariadb # to start MariaDB if not started
+systemctl enable mariadb # to make sure that MariaDB will start after the server reboot automatically
 }
 
 #Function containing all the steps for the upgrade of MySQL
 upgrade_mysql() {
-echo -e "\n\n###Upgrading MySQL -"
-echo -e "\n-List of available versions:\n\n5.6\n5.7\n8.0\n"
+echo -e "\n\n###Upgrading MySQL -"; echo -e "\n-List of available versions:\n\n5.6\n5.7\n8.0\n"
 echo -e "\nWhich one are you installing? Only the version: 5.6, 8.0, etc.)."
 safe_diff
 supported_versions=(56 57 80)
@@ -248,15 +231,12 @@ stop_mysql
 rpm -e --nodeps `rpm -q --whatprovides mysql-server` 2&> /dev/null
 
 echo -e "\nyum update"
-yum update -y
-exit_status
+yum update -y; exit_status
 echo -e "\nyum install MySQL-server -y"
-yum install mysql-server -y
-exit_status
+yum install mysql-server -y; exit_status
 sed -i 's/::ffff:127.0.0.1/127.0.0.1/g' /etc/my.cnf
 systemctl start mysql 2&> /dev/null
-systemctl start mysqld 2&> /dev/null
-sleep 2
+systemctl start mysqld 2&> /dev/null; sleep 2
 MYSQL_PWD=`cat /etc/psa/.psa.shadow` mysql_upgrade -uadmin
 restart_mysql
 
@@ -303,11 +283,10 @@ fi
 
 up_exec
 post_check
-
 echo -e "\n\nUpgrade completed."
 
 while true; do
-	echo -e "\nWant to upgrade to an even most recent version?"
+	echo -e "\nDo you want to start another update process?"
 	read answ
     	if [[ $answ == "yes" || $answ == "Yes" || $answ == "YES" || $answ == "y" ]]; then
         	up_exec
