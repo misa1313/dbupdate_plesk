@@ -17,7 +17,7 @@ if [[ ! -z "$v1" ]]; then
 else
         :
 fi
-v2=$(rpm -qa | grep -iEe mariadb.*-server |grep -v plesk|grep "\-5.5.")
+v2=$(rpm -qa | grep -iEe mariadb.*-server |grep -v plesk|grep "\-5.4.")
 if [[ ! -z "$v2" ]]; then
 echo -e "MariaDB 5.5 not supported"
         kill -9 $$
@@ -146,13 +146,15 @@ diff /home/temp/mysql_pre_upgrade_http_check /home/temp/mysql_post_upgrade_http_
 
 #Version checking to ensure safe upgrades
 safe_diff() {
-read vers
+read versl
+vers=$(echo $versl|tr -d '.')
 ver_diff=$(echo "$db_ver $vers"| awk '{print $1 - $2}')
-ver_diff=$( sed "s/-//" <<< $ver_diff )
+ver_diff=$( sed "s/-//" <<< $ver_diff ) #absolute value
 }
+
 db_ver=$(mysql -uadmin -p`cat /etc/psa/.psa.shadow` -V| grep -Eo "[0-9]+\.[0-9]+\.[0-9]+"|cut -c1-4)
 echo -e "\nCurrent version is $db_ver\n"
-
+db_ver=$(echo $db_ver|tr -d '.')
 #Function containing all the steps for the upgrade of MariaDB
 upgrade_mariadb() {
 if [ -f "/etc/yum.repos.d/MariaDB.repo" ] ; then
@@ -166,19 +168,21 @@ rpm -e --nodeps "`rpm -q --whatprovides mysql-server`" 2&> /dev/null
 echo -e "\n\n###Upgrading MariaDB -"
 echo -e "\n-List of available versions:\n\n10.2\n10.3\n10.4\n10.5\n10.6\n"
 echo -e "\nWhich one are you installing? Only the version: 10.3, 10.4, etc.)."
-db_ver=$(mysql -uadmin -p`cat /etc/psa/.psa.shadow` -V| grep -Eo "[0-9]+\.[0-9]+\.[0-9]+"|cut -c1-4)
+#db_ver=$(mysql -uadmin -p`cat /etc/psa/.psa.shadow` -V| grep -Eo "[0-9]+\.[0-9]+\.[0-9]+"|cut -c1-4)
 safe_diff
 while true; do
-        if [[ "$vers" == '10.2' ]] || [[ "$vers" == '10.3' ]] || [[ "$vers" == '10.4' ]] || [[ "$vers" == '10.5' ]] || [[ "$vers" == '10.6' ]] && [[ $vers < $db_ver ]]; then
+        if [[ "$vers" == '102' ]] || [[ "$vers" == '103' ]] || [[ "$vers" == '104' ]] || [[ "$vers" == '105' ]] || [[ "$vers" == '106' ]] && [[ $vers -lt $db_ver ]]; then
             echo "Downgrades are not supported at this time, select another version."
             safe_diff
-        elif [[ "$vers" == '10.2' ]] || [[ "$vers" == '10.3' ]] || [[ "$vers" == '10.4' ]] || [[ "$vers" == '10.5' ]] || [[ "$vers" == '10.6' ]] && [[ $ver_diff == '0.2' ]] ; then
+        elif [[ "$vers" == '102' ]] && [[ "$db_ver" == '55' ]] ; then
+	    break
+	elif [[ "$vers" == '102' ]] || [[ "$vers" == '103' ]] || [[ "$vers" == '104' ]] || [[ "$vers" == '105' ]] || [[ "$vers" == '106' ]] && [[ $ver_diff == '2' ]] ; then
             echo "Command line upgrades should be done incrementally to avoid damage, like 5.5 -> 5.6 -> 5.7 rather than straight from 5.5 -> 5.7. Please select an older version."
             safe_diff
-         elif [[ "$vers" == '10.2' ]] || [[ "$vers" == '10.3' ]] || [[ "$vers" == '10.4' ]] || [[ "$vers" == '10.5' ]] || [[ "$vers" == '10.6' ]] && [[ $ver_diff > '0.2' ]] ; then
-            echo "Command line upgrades should be done incrementally to avoid damage, like 5.5 -> 5.6 -> 5.7 rather than straight from 5.5 -> 5.7. Please select an older version."
-            safe_diff
-        elif  [[ "$vers" == '10.2' ]] || [[ "$vers" == '10.3' ]] || [[ "$vers" == '10.4' ]] || [[ "$vers" == '10.5' ]] || [[ "$vers" == '10.6' ]] && [[ $ver_diff < '0.2' ]]; then
+         elif [[ "$vers" == '102' ]] || [[ "$vers" == '103' ]] || [[ "$vers" == '104' ]] || [[ "$vers" == '105' ]] || [[ "$vers" == '106' ]] && [[ $ver_diff > '2' ]] ; then
+           echo "Command line upgrades should be done incrementally to avoid damage, like 5.5 -> 5.6 -> 5.7 rather than straight from 5.5 -> 5.7. Please select an older version."
+           safe_diff
+        elif  [[ "$vers" == '102' ]] || [[ "$vers" == '103' ]] || [[ "$vers" == '104' ]] || [[ "$vers" == '105' ]] || [[ "$vers" == '106' ]] && [[ $ver_diff < '2' ]]; then
             break
         else
             echo "Invalid option, choose again."
@@ -187,10 +191,13 @@ while true; do
 done
 
 #Adding the repo
+if [[ "$versl" == '10.2' ]]; then
+	versl=10.2.44 #Repo for 10.2 is broken
+fi
 echo "#http://downloads.mariadb.org/mariadb/repositories/
 [mariadb]
 name = MariaDB
-baseurl = http://yum.mariadb.org/$vers/centos7-amd64
+baseurl = http://yum.mariadb.org/$versl/centos7-amd64
 gpgkey=https://yum.mariadb.org/RPM-GPG-KEY-MariaDB
 gpgcheck=1
 exclude=MariaDB-Galera*" > /etc/yum.repos.d/mariadb.repo
