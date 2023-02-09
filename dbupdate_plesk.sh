@@ -266,11 +266,32 @@ systemctl start mysql 2&> /dev/null
 systemctl start mysqld 2&> /dev/null
 }
 
+cloudlinux_governor() {
+echo -e "The server is using CloudLinux's MySQL Governor\n"
+echo -e "\nTo which version would you like to upgrade?\nOptions:\n\nMYSQL:\nmysql55, mysql56, mysql57, mysql80\n\nMariaDB:\nmariadb100, mariadb101, mariadb102, mariadb103, mariadb104, mariadb105, mariadb106\n"
+read clvers
+supported_versions=(mysql55 mysql56 mysql57 mysql80 mariadb100 mariadb101 mariadb102 mariadb103 mariadb104 mariadb105 mariadb106)
+while true; do
+        if [[ "${supported_versions[@]}" =~ "$clvers" ]]; then
+		echo -e "\nUpgrading to $clvers using the MySQL Governor script:"
+    		exe eval '/usr/share/lve/dbgovernor/mysqlgovernor.py --mysql-version=$clvers'
+    		exe eval '/usr/share/lve/dbgovernor/mysqlgovernor.py --install --yes'
+		break
+        else
+            echo "Invalid option, choose again."
+	    read clvers
+        fi
+done
+}
+
 #Upgrade execution
 up_exec() {
 whichv=$(rpm -qa | grep -iEe mysql.*-server -iEe mariadb.*-server |grep -v plesk)
 whichv=$(echo "$whichv" | awk '{print tolower($0)}')
-if [[ "$whichv" == "mysql"* ]]; then
+rpm -qa|grep -i "cl-mariadb\|cl-mysql" #Checking if there are MySQL Governor packages
+if [[ $? -eq 0 ]] && [[ -f "/usr/share/lve/dbgovernor/mysqlgovernor.py" ]]; then
+	cloudlinux_governor
+elif [[ "$whichv" == "mysql"* ]]; then
 	upgrade_mysql
 elif [[ "$whichv" == "mariadb"* ]]; then
 	upgrade_mariadb
