@@ -216,6 +216,7 @@ exit_status
 echo -e "\n-yum install MariaDB-server -y"
 yum install MariaDB-server -y
 exit_status
+sed -i 's/::ffff:127.0.0.1/127.0.0.1/g' /etc/my.cnf
 systemctl start mariadb
 sleep 2
 MYSQL_PWD=`cat /etc/psa/.psa.shadow` mysql_upgrade -uadmin
@@ -252,6 +253,7 @@ exit_status
 echo -e "\nyum install MySQL-server -y"
 yum install mysql-server -y
 exit_status
+sed -i 's/::ffff:127.0.0.1/127.0.0.1/g' /etc/my.cnf
 systemctl start mysql 2&> /dev/null
 systemctl start mysqld 2&> /dev/null
 sleep 2
