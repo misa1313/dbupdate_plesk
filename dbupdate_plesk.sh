@@ -231,7 +231,7 @@ echo -e "\nWhich one are you installing? Only the version: 5.6, 8.0, etc.)."
 safe_diff
 while true; do
 	supported_versions=(56 57 80)
-        if [[ "${supported_versions[@]}" =~ "$vers" ]]  && [[ $vers < $db_ver ]]; then
+        if [[ "${supported_versions[@]}" =~ "$vers" ]]  && [[ $vers -lt $db_ver ]]; then
             echo "Downgrades are not supported at this time, select another version."
             safe_diff
         elif [[ "${supported_versions[@]}" =~ "$vers" ]] && [[ $ver_diff == '2' ]] ; then
