@@ -156,26 +156,13 @@ db_ver=$(mysql -uadmin -p`cat /etc/psa/.psa.shadow` -V| grep -Eo "[0-9]+\.[0-9]+
 echo -e "\nCurrent version is $db_ver\n"
 db_ver=$(echo $db_ver|tr -d '.')
 
-#Function containing all the steps for the upgrade of MariaDB
-upgrade_mariadb() {
-if [ -f "/etc/yum.repos.d/MariaDB.repo" ] ; then
-  mv /etc/yum.repos.d/MariaDB.repo /etc/yum.repos.d/mariadb.repo
-fi
-
-echo -e "\n###Removing mysql-server package in case it exists"
-echo "With rpm e mysql-server"
-rpm -e --nodeps "`rpm -q --whatprovides mysql-server`" 2&> /dev/null
-
-echo -e "\n\n###Upgrading MariaDB -"
-echo -e "\n-List of available versions:\n\n10.2\n10.3\n10.4\n10.5\n10.6\n"
-echo -e "\nWhich one are you installing? Only the version: 10.3, 10.4, etc.)."
-safe_diff
+#Function to select the version to install
+select_version() {
 while true; do
-	supported_versions=(102 103 104 105 106)
         if [[ "${supported_versions[@]}" =~ "$vers" ]] && [[ "$vers" -lt "$db_ver" ]]; then
             echo "Downgrades are not supported at this time, select another version."
             safe_diff
-        elif [[ "$vers" == '102' ]] && [[ "$db_ver" == '55' ]] ; then
+        elif [[ "$whichv" == "mariadb"* ]] && [[ "$vers" == '102' ]] && [[ "$db_ver" == '55' ]] ; then
 	    break
 	elif [[ "${supported_versions[@]}" =~ "$vers" ]] && [[ $ver_diff == '2' ]] ; then
             echo "Command line upgrades should be done incrementally to avoid damage, like 5.5 -> 5.6 -> 5.7 rather than straight from 5.5 -> 5.7. Please select an older version."
@@ -190,6 +177,23 @@ while true; do
             safe_diff
         fi
 done
+}
+#Function containing all the steps for the upgrade of MariaDB
+upgrade_mariadb() {
+if [ -f "/etc/yum.repos.d/MariaDB.repo" ] ; then
+  mv /etc/yum.repos.d/MariaDB.repo /etc/yum.repos.d/mariadb.repo
+fi
+
+echo -e "\n###Removing mysql-server package in case it exists"
+echo "With rpm e mysql-server"
+rpm -e --nodeps "`rpm -q --whatprovides mysql-server`" 2&> /dev/null
+
+echo -e "\n\n###Upgrading MariaDB -"
+echo -e "\n-List of available versions:\n\n10.2\n10.3\n10.4\n10.5\n10.6\n"
+echo -e "\nWhich one are you installing? Only the version: 10.3, 10.4, etc.)."
+safe_diff
+supported_versions=(102 103 104 105 106)
+select_version
 
 #Adding the repo
 if [[ "$versl" == '10.2' ]]; then
@@ -229,29 +233,12 @@ echo -e "\n\n###Upgrading MySQL -"
 echo -e "\n-List of available versions:\n\n5.6\n5.7\n8.0\n"
 echo -e "\nWhich one are you installing? Only the version: 5.6, 8.0, etc.)."
 safe_diff
-while true; do
-	supported_versions=(56 57 80)
-        if [[ "${supported_versions[@]}" =~ "$vers" ]]  && [[ $vers -lt $db_ver ]]; then
-            echo "Downgrades are not supported at this time, select another version."
-            safe_diff
-        elif [[ "${supported_versions[@]}" =~ "$vers" ]] && [[ $ver_diff == '2' ]] ; then
-            echo "Command line upgrades should be done incrementally to avoid damage, like 5.5 -> 5.6 -> 5.7 rather than straight from 5.5 -> 5.7. Please select an older version."
-            safe_diff
-         elif [[ "${supported_versions[@]}" =~ "$vers" ]] && [[ $ver_diff > '2' ]] ; then
-            echo "Command line upgrades should be done incrementally to avoid damage, like 5.5 -> 5.6 -> 5.7 rather than straight from 5.5 -> 5.7. Please select an older version."
-            safe_diff
-        elif  [[ "${supported_versions[@]}" =~ "$vers" ]] && [[ $ver_diff < '2' ]]; then
-            break
-        else
-            echo "Invalid option, choose again."
-            safe_diff
-        fi
-done
-vers2=$(echo $versl|sed -e 's/\.//g')
+supported_versions=(56 57 80)
+select_version
 
 #Adding the repo
-echo "[mysql$vers2-community]
-name=MySQL $vers Community Server
+echo "[mysql$vers-community]
+name=MySQL $versl Community Server
 baseurl=http://repo.mysql.com/yum/mysql-$versl-community/el/7/x86_64/
 enabled=1
 gpgcheck=0" > /etc/yum.repos.d/mysql-community.repo
