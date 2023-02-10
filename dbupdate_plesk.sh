@@ -140,10 +140,13 @@ ver_diff=$(echo "$db_ver $vers"| awk '{print $1 - $2}')
 ver_diff=$( sed "s/-//" <<< $ver_diff ) #absolute value
 }
 
+get_version(){
 db_ver=$(mysql -uadmin -p`cat /etc/psa/.psa.shadow` -V| grep -Eo "[0-9]+\.[0-9]+\.[0-9]+"|cut -c1-4) #Get version
 echo -e "\nCurrent version is $db_ver\n"
 db_ver=$(echo $db_ver|tr -d '.')
+}
 
+get_version
 #Function to select the version to install
 select_version() {
 while true; do
@@ -289,6 +292,7 @@ while true; do
 	echo -e "\nDo you want to start another update process?"
 	read answ
     	if [[ $answ == "yes" || $answ == "Yes" || $answ == "YES" || $answ == "y" ]]; then
+		get_version
         	up_exec
 		post_check
 		echo -e "\n\nUpgrade completed."
