@@ -5,7 +5,6 @@ A bash script to automatically upgrade the database management system on Plesk s
 
 ## Usage:
 
-Enter any username (this is for reference).
 Select the proper MYSQL/MariaDB version:
 ```
     5.6 (MySQL)
