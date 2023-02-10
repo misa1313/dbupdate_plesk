@@ -273,7 +273,7 @@ done
 up_exec() {
 whichv=$(rpm -qa | grep -iEe mysql.*-server -iEe mariadb.*-server |grep -v plesk)
 whichv=$(echo "$whichv" | awk '{print tolower($0)}')
-rpm -qa|grep -i "cl-mariadb\|cl-mysql" #Checking if there are MySQL Governor packages
+rpm -qa|grep -i "cl-mariadb\|cl-mysql" > /dev/null 2>&1 #Checking if there are MySQL Governor packages
 if [[ $? -eq 0 ]] && [[ -f "/usr/share/lve/dbgovernor/mysqlgovernor.py" ]]; then
 	cloudlinux_governor
 elif [[ "$whichv" == "mysql"* ]]; then
