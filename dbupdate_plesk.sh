@@ -206,13 +206,14 @@ echo -e "\n-yum install MariaDB-server -y"
 yum install MariaDB-server -y; exit_status
 sed -i 's/::ffff:127.0.0.1/127.0.0.1/g' /etc/my.cnf
 systemctl start mariadb; sleep 2
-MYSQL_PWD=`cat /etc/psa/.psa.shadow` mysql_upgrade -uadmin
 restart_mariadb
+MYSQL_PWD=`cat /etc/psa/.psa.shadow` mysql_upgrade -uadmin
 
 echo -e "\nInforming Plesk of the changes (plesk sbin packagemng -sdf):"
 plesk sbin packagemng -sdf
 systemctl start mariadb # to start MariaDB if not started
 systemctl enable mariadb # to make sure that MariaDB will start after the server reboot automatically
+restart_mariadb
 }
 
 #Function containing all the steps for the upgrade of MySQL
@@ -240,13 +241,14 @@ yum install mysql-server -y; exit_status
 sed -i 's/::ffff:127.0.0.1/127.0.0.1/g' /etc/my.cnf
 systemctl start mysql 2&> /dev/null
 systemctl start mysqld 2&> /dev/null; sleep 2
-MYSQL_PWD=`cat /etc/psa/.psa.shadow` mysql_upgrade -uadmin
 restart_mysql
+MYSQL_PWD=`cat /etc/psa/.psa.shadow` mysql_upgrade -uadmin
 
 echo -e "\nInforming Plesk of the changes (plesk sbin packagemng -sdf):"
 plesk sbin packagemng -sdf
 systemctl start mysql 2&> /dev/null
 systemctl start mysqld 2&> /dev/null
+restart_mysql
 }
 
 cloudlinux_governor() {
