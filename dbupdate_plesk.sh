@@ -132,7 +132,7 @@ pre_checks() {
         stopp
     fi    
  
-    echo -e "\nRsync data dir:\n"
+    echo -e "\nRsync data dir:"
     ddir=$(mysql $AUTH -e "show variables;" |grep datadir| awk {'print $2'})
     bakdir=("/root/dbms_back/mysql.backup.$(date +%s)/")
     stop_mysql
