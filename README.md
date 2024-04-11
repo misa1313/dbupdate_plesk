@@ -7,11 +7,10 @@ A bash script to automatically upgrade the database management system on Plesk s
 
 Select the proper MariaDB version:
 ```
-    10.2 (MariaDB)
-    10.3 (MariaDB)
     10.4 (MariaDB)
     10.5 (MariaDB)
     10.6 (MariaDB)
+    10.11 (MariaDB)
  ```
  
 ## Features:
