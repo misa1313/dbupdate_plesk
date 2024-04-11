@@ -58,10 +58,8 @@ stop_mysql() {
 }
 
 sqlm() {
-    if [[ ! -f "/etc/my.cnf.$DATE" ]]; then
-        echo -e "\nBacking up the configuration file to my.cnf.$DATE:"
-        cp -avr /etc/my.cnf /etc/my.cnf.$DATE
-    fi
+    echo -e "\nBacking up the configuration file to /etc/my.cnf.$DATE:"
+    cp -avr /etc/my.cnf /etc/my.cnf.$DATE
     echo -e "\n- SQL MODE:"
     (grep -Eq 'sql_mode|sql-mode' /etc/my.cnf &&
     echo -e "\e[1;92m[PASS] \e[0;32mSQL mode is set explicitly.\e(B\e[m\n" || 
@@ -81,6 +79,7 @@ sqlm() {
     fi
     sed -i 's/::ffff:127.0.0.1/127.0.0.1/g' /etc/my.cnf
     sed -i "s/NO_AUTO_CREATE_USER,//g" /etc/my.cnf
+    echo -e "Added, restarting MYSQL\n"
     restart_mysql  
     echo -e "Confirming: grep -E 'sql_mode|sql-mode' /etc/my.cnf"
     grep -E 'sql_mode|sql-mode' /etc/my.cnf && echo -e "\nGiving a few secs for MYSQL to start\n" && sleep 3))
@@ -158,8 +157,8 @@ pre_checks() {
 #Post-check (HTTP status)
 post_check() {
     sed -i 's/::ffff:127.0.0.1/127.0.0.1/g' /etc/my.cnf
-    sleep 2
     restart_mysql
+    sleep 30
     mysql_upgrade $AUTH
 
     echo -e "\nInforming Plesk of the changes (plesk sbin packagemng -sdf):"
@@ -237,8 +236,6 @@ upgrade_mariadb() {
     stop_mysql
     exe eval 'rpm -e --nodeps MariaDB-server'
     exe eval 'rpm -e --nodeps mariadb-libs'
-    exe eval 'yum update -y'
-    exit_status
     exe eval 'yum install MariaDB-server -y'
     exit_status
     if [[ ! -d "/run/mariadb" ]]; then
