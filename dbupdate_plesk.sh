@@ -20,7 +20,7 @@ fi
 
 LOG_FILE="/root/dbms_update_log.log"
 truncate -s 0 $LOG_FILE
-echo -e "\n========================================================================\nStarting UpDATE process, logs will be saved at $LOG_FILE\n========================================================================\n" | tee -a "$LOG_FILE"
+echo -e "\n========================================================================\nStarting Update process, logs will be saved at $LOG_FILE\n========================================================================\n" | tee -a "$LOG_FILE"
 
 AUTH="-uadmin -p$(cat /etc/psa/.psa.shadow)"
 OS_VERSION=$(rpm -q --qf "%{VERSION}" $(rpm -q --whatprovides redhat-release) | cut -d "." -f1)
@@ -152,7 +152,7 @@ pre_checks() {
         echo $i
     done >/root/dbms_back/mysql_pre_upgrade_http_check
     (set -x; grep -E -v '^(0|2)00 ' /root/dbms_back/mysql_pre_upgrade_http_check)
-    echo -e "\n- Plesk upgrade: MariaDB Upgrade"
+    echo -e "\n- Plesk Upgrade: MariaDB Upgrade"
 }
 
 #Post-check (HTTP status)
@@ -185,7 +185,7 @@ safe_diff() {
 }
 
 get_version() {
-    db_ver=$(mysql $AUTH -V | grep -Eo "[0-9]+\.[0-9]+\.[0-9]+" | cut -c1-4) #Get version
+    db_ver=$(mysql $AUTH -V | grep -Eo "[0-9]+\.[0-9]+\.[0-9]+" | cut -c1-4) 
     echo -e "\nCurrent version is $db_ver\n"
     db_ver=$(echo $db_ver | tr -d '.')
 }
@@ -296,8 +296,7 @@ plesk_options() {
 
 #Main Procedure:
 upgrade_do_plesk() {
-    whichv=$(rpm -qa | grep -iEe mysql.*-server -iEe mariadb.*-server | grep -v plesk)
-    whichv=$(echo "$whichv" | awk '{print tolower($0)}')
+    whichv=$(rpm -qa | grep -iEe mysql.*-server -iEe mariadb.*-server | grep -v plesk | awk '{print tolower($0)}')
     if [[ "$(cat /etc/redhat-release)" == *"CloudLinux"* ]]; then
         echo "CloudLinux server detected..." 
         gov_package=$(rpm -q governor-mysql &>/dev/null; echo $?)
