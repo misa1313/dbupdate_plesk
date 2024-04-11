@@ -1,7 +1,12 @@
 # dbupdate_plesk
 
-A bash script to automatically upgrade the database management system on Plesk servers. Tested on CentOS 7.
-
+A bash script to automatically upgrade the database management system on Plesk servers. Tested on :
+```
+CentOS 7
+CloudLinux 7
+CloudLinux 8
+AlmaLinux 8
+```
 
 ## Usage:
 
